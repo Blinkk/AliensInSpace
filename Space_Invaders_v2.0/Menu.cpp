@@ -2,7 +2,32 @@
 
 Menu::Menu(std::string filename_bckgrnd, HWND wind)
 {
-	background = LoadSurface(filename_bckgrnd);
+	LPDIRECT3DSURFACE9 image = LoadSurface(filename_bckgrnd);
+	if (!image) return;
+
+	// Create the background 
+	HRESULT result = d3ddev->CreateOffscreenPlainSurface(
+		800, 1200, D3DFMT_X8R8G8B8,
+		D3DPOOL_DEFAULT, &background,
+		NULL);
+	if (result != D3D_OK) return;
+
+	// Copy the image to the upper left corner of the background
+	RECT source_rect = { 0, 0, SCREENW, SCREENH };
+	RECT dest_ul = { 0, 0, SCREENW, SCREENH };
+	d3ddev->StretchRect(image, &source_rect, background, &dest_ul, D3DTEXF_NONE);
+
+	//copy the image into the lower left corner of the background
+	RECT dest_ll = { 0, 600, SCREENW, SCREENH * 2 };
+	d3ddev->StretchRect(image, &source_rect, background, &dest_ll, D3DTEXF_NONE);
+
+	// pointer to the backbuffer
+	d3ddev->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backbuffer);
+	image->Release();
+
+	scrollY = 0;
+
+
 	window = wind;
 	active = true;
 	for (int i = 0; i < 2; i++)
@@ -41,10 +66,15 @@ void Menu::DrawMenu()
 	mouseX = mousePos.x;
 	mouseY = mousePos.y + 30;
 
+	// Scroll the background
+	scrollY--;
+	if (scrollY < 0) scrollY = 1200 - SCREENH - 1;
+	if (scrollY > 1200 - SCREENH - 1) scrollY = 0;
+
 	// Draw background
-	static RECT sourceRect = { 0, 0, SCREENW, SCREENH };
-	d3ddev->StretchRect(background, &sourceRect, backbuffer, NULL,
-		D3DTEXF_NONE);
+	RECT source_rect = { 0, scrollY, SCREENW, scrollY + SCREENH };
+	RECT dest_rect = { 0, 0, SCREENW, SCREENH };
+	d3ddev->StretchRect(background, &source_rect, backbuffer, &dest_rect, D3DTEXF_NONE);
 
 	for (buttonIt = buttons.begin(); buttonIt != buttons.end(); buttonIt++)
 	{
@@ -55,16 +85,16 @@ void Menu::DrawMenu()
 		if (mouseX >= (*buttonIt)->x && mouseX <= (*buttonIt)->x + (*buttonIt)->width
 			&& mouseY >= (*buttonIt)->y && mouseY <= (*buttonIt)->y + (*buttonIt)->height)
 		{
-			(*buttonIt)->btn = (*buttonIt)->btnS;
+			(*buttonIt)->frame = 1;
 			if (Mouse_Button(MB_DEFBUTTON1))
 			{
 				Sleep(500);
 				active = false;
 				btnStatus[cntr] = true;
-			}		
+			}
 		}
 		else
-			(*buttonIt)->btn = (*buttonIt)->orig;
+			(*buttonIt)->frame = 0;
 		
 		cntr++;
 		if (cntr > buttons.size())

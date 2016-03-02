@@ -8,58 +8,75 @@
 #define MENU_H
 #include "DirectX.h"
 #include "Sprite.h"
+#include "Font.h"
 #include <iostream>
 #include <vector>
 //using namespace std;
 
 struct Button
 {
+	enum ButtonTypes { START = 0, CLOSE };
 	LPDIRECT3DTEXTURE9 btn;
-	LPDIRECT3DTEXTURE9 btnS;
-	LPDIRECT3DTEXTURE9 orig;
+	Font* fontObj;
 	int x, y;
 	int width, height;
+	int frame;
+	unsigned int buttonType;		
 
 	Button() {}
 
 	// You must specify position using magic numbers as of right now
 	// This button uses two separate images (one standard & one highlighted)
-	Button(std::string filename, std::string filename2,
-		int X, int Y, int W, int H)
+	Button(std::string filename,int X, int Y, int W, int H, 
+		unsigned int btnType)
 	{
 		x = X;
 		y = Y;
 		width = W;
 		height = H;
+		buttonType = btnType;
 		btn = LoadTexture(filename, D3DCOLOR_XRGB(255, 255, 255));
-		btnS = LoadTexture(filename2, D3DCOLOR_XRGB(255, 255, 255));
-		orig = btn;
+
+		fontObj = nullptr;
+		fontObj = new Font("Calibri", 36);
 	}
 
-	// Leaking sprites
-	//virtual ~Button()
-	//{
-	//	// Deconstruct (delete sprites)
-	//	if (btn)
-	//	{
-	//		delete btn;
-	//		btn = NULL;
-	//	}
-	//	if (btnS)
-	//	{
-	//		delete btnS;
-	//		btnS = NULL;
-	//	}
-	//	if (orig)
-	//	{
-	//		delete orig;
-	//		orig = NULL;
-	//	}
-	//}
+	~Button()
+	{
+		if (btn) btn->Release();
+		if (fontObj)
+		{
+			delete fontObj;
+			fontObj = nullptr;
+		}
+	}
 
 	void Draw()
 	{
-		Sprite_Draw_Frame(btn, x, y, 0, width, height, 1);
+		// Draw sprite
+		Sprite_Draw_Frame(btn, x, y, frame, width, height, 1);
+
+		// Draw text
+		spriteobj->Begin(D3DXSPRITE_ALPHABLEND);
+		int xPos, yPos;
+		switch (buttonType)
+		{
+		case START:
+			xPos = x + (width / 2) - (fontObj->getTextWidth("START") / 2);
+			yPos = y + (height / 2) - (fontObj->getTextHeight("START") / 2);
+			fontObj->Print(xPos, yPos, "START", D3DCOLOR_XRGB(255, 255, 255));
+			break;
+
+		case CLOSE:
+			xPos = x + (width / 2) - (fontObj->getTextWidth("EXIT") / 2);
+			yPos = y + (height / 2) - (fontObj->getTextHeight("EXIT") / 2);
+			fontObj->Print(xPos, yPos, "EXIT", D3DCOLOR_XRGB(255, 255, 255));
+			break;
+
+		default:
+			break;
+		}
+		spriteobj->End();
 	}
 };
 
@@ -68,6 +85,7 @@ class Menu
 private:
 	std::vector<Button*> buttons;
 	LPDIRECT3DSURFACE9 background;
+	double scrollY;
 	HWND window;
 	bool active;
 	bool btnStatus[2];

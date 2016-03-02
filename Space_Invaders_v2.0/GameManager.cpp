@@ -14,6 +14,30 @@ GameManager::GameManager(HWND window)
 {
 	// Pass this constructor a window, that is passed to base constructor
 	// and stored as the window to be used for drawing...
+	scrollX = 0;
+	scrollY = 0;
+	frm = 0;
+	enemyExploding = false;
+	shipExploding = false;
+	prevShipExploding = false;
+	pause = false;
+	playerDead = false;
+	bonusActive = false;
+	hordeDropCount = 0;
+	hordeLeft = 0;
+	hordeWidth = 0;
+	hordeSpeed = 0;
+	playerLives = 3;
+	playerScore = 0;
+	background = nullptr;
+	gameOver1 = nullptr;
+	gameOver2 = nullptr;
+	logo = nullptr;
+	btnStart = nullptr;
+	btnClose = nullptr;
+	menu = nullptr;
+	ship = nullptr;
+	bonusEnemy = nullptr;
 }
 
 GameManager::~GameManager()
@@ -43,8 +67,41 @@ bool GameManager::LoadContent()
 	PlaySound(TEXT("C:\\Users\\Austin\\Documents\\Visual Studio 2013\\Projects\\Space_Invaders\\Space_Invaders\\WorkIt.wav"),
 		NULL, SND_LOOP | SND_ASYNC);
 
+	// Create a font object
+	_fontObj = new Font("Calibri", 36);
+
 	// Load background
-	background = LoadSurface("space_bg.bmp");
+	LPDIRECT3DSURFACE9 image = NULL;
+
+	image = LoadSurface("space_bg.bmp");
+	if (!image) return false;
+
+	// Create the background 
+	HRESULT result = d3ddev->CreateOffscreenPlainSurface(
+		BUFFERW, BUFFERH, D3DFMT_X8R8G8B8,
+		D3DPOOL_DEFAULT, &background,
+		NULL);
+	if (result != D3D_OK) return false;
+
+	// Copy the image to the upper left corner of the background
+	RECT source_rect = { 0, 0, SCREENW, SCREENH };
+	RECT dest_ul = { 0, 0, SCREENW, SCREENH };
+	d3ddev->StretchRect(image, &source_rect, background, &dest_ul, D3DTEXF_NONE);
+
+	//copy the image into the upper right corner of the background
+	RECT dest_ur = { 800, 0, SCREENW * 2, SCREENH };
+	d3ddev->StretchRect(image, &source_rect, background, &dest_ur, D3DTEXF_NONE);
+	//copy the image into the lower left corner of the background
+
+	RECT dest_ll = { 0, 600, SCREENW, SCREENH * 2 };
+	d3ddev->StretchRect(image, &source_rect, background, &dest_ll, D3DTEXF_NONE);
+	//copy the image into the lower right corner of the background
+
+	RECT dest_lr = { 800, 600, SCREENW * 2, SCREENH * 2 };
+	d3ddev->StretchRect(image, &source_rect, background, &dest_lr, D3DTEXF_NONE);
+	// pointer to the backbuffer
+	d3ddev->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backbuffer);
+	image->Release();
 
 	// Load gameover screens
 	gameOver1 = LoadSurface("GameOver1.bmp");
@@ -54,24 +111,12 @@ bool GameManager::LoadContent()
 	logo = new Sprite(LoadTexture("Logo.png", _white), (SCREENW / 2) - 295, 50, 0, 590, 300, 0, 0,
 		1.0f, 1, 1.0f);
 
-	// Load text sprites
-	for (int i = 0; i < 10; i++)
-	{
-		numbers[i] = new Sprite(LoadTexture("numbers_spritesheet.bmp", _white), 0, 0, 0, 50, 31, 0, 0,
-			1.0f, 5, 1.0f, 0, 9, 1, 0);
-	}
-	score_sprite = new Sprite(LoadTexture("score_sprite.bmp"), 120, SCREENH - 20, 0, 67, 20, 0, 0,
-		1.0f, 1, 1.0f);
-	lives_sprite = new Sprite(LoadTexture("lives_sprite.bmp"), 10, SCREENH - 20, 0, 67, 20, 0, 0,
-		1.0f, 1, 1.0f);
-	UIInit();	// Initialize UI positioning
-
 	// Load menu & buttons
 	menu = new Menu("space_bg.bmp", _window);
-	btnStart = new Button("StartButton.png", "HL_StartButton.png",
-		(SCREENW / 2) - 162, SCREENH / 2 + 150, 325, 36);
-	btnClose = new Button("CloseButton.png", "HL_CloseButton.png",
-		(SCREENW / 2) - 162, (SCREENH / 2 + 150) + 45, 325, 36);
+	btnStart = new Button("menu_button.png",
+		(SCREENW / 2) - 100, SCREENH / 2 + 100, 200, 64.5f, 0);
+	btnClose = new Button("menu_button.png",
+		(SCREENW / 2) - 100, (SCREENH / 2 + 100) + 75, 200, 64.5f, 1);
 	menu->AddButton(btnStart); menu->AddButton(btnClose);	// Add buttons to menu
 
 	// Load ship
@@ -119,6 +164,8 @@ void GameManager::Update()
 	// Update input
 	DirectInput_Update();
 
+	ScrollBackground();
+
 	// Call update functions
 	if (!pause && !playerDead && !menu->IsActive())
 	{
@@ -165,19 +212,15 @@ void GameManager::Render()
 			if (playerDead && !pause)
 			{
 				d3ddev->StretchRect(gameOver1, NULL, backbuffer, NULL, D3DTEXF_NONE);
-				//int random = rand() % 10 + 5;
-				//if (random < 10)
-				//	d3ddev->StretchRect(gameOver1, NULL, backbuffer, NULL, D3DTEXF_NONE);
-				//else
-				//	d3ddev->StretchRect(gameOver2, NULL, backbuffer, NULL, D3DTEXF_NONE);
 			}
 				
-
 			// If start button was pressed, draw game...
 			else if (menu->CheckButtonStatus(START))
 			{
 				// Draw background
-				d3ddev->StretchRect(background, NULL, backbuffer, NULL, D3DTEXF_NONE);
+				RECT source_rect = { scrollX, scrollY, scrollX + SCREENW, scrollY + SCREENH };
+				RECT dest_rect = { 0, 0, SCREENW, SCREENH };
+				d3ddev->StretchRect(background, &source_rect, backbuffer, &dest_rect, D3DTEXF_NONE);
 
 				// Call draw functions
 				DrawShip();
@@ -201,26 +244,13 @@ void GameManager::Render()
 void GameManager::UnloadContent()
 {
 	// Release memory
+	if (_fontObj)
+	{
+		delete _fontObj;
+		_fontObj = nullptr;
+	}
 	if (background) background->Release();
-	if (numbers)
-	{
-		for (int i = 0; i < 10; i++)
-		{
-			delete numbers[i];
-			numbers[i] = NULL;
-		}
 
-	}
-	if (score_sprite)
-	{
-		delete score_sprite;
-		score_sprite = NULL;
-	}
-	if (lives_sprite)
-	{
-		delete lives_sprite;
-		lives_sprite = NULL;
-	}
 	if (ship)
 	{
 		delete ship;
@@ -308,6 +338,31 @@ void GameManager::UnloadContent()
 		}
 		explosions.clear();
 	}
+}
+
+void GameManager::ScrollBackground()
+{
+	// Always scroll up
+	scrollY--;
+
+	if (Key_Down(DIK_LEFT))
+	{
+		// Scroll left
+		scrollX -= 0.5f;
+	}
+	if (Key_Down(DIK_RIGHT))
+	{
+		// Scroll right
+		scrollX += 0.5f;
+	}
+
+	// for the up and down part of the background
+	if (scrollY < 0) scrollY = BUFFERH - SCREENH - 1;
+	if (scrollY > BUFFERH - SCREENH - 1) scrollY = 0;
+
+	// for the left and right part of the background
+	if (scrollX < 0) scrollX = BUFFERW - SCREENW - 1;
+	if (scrollX > BUFFERW - SCREENW - 1) scrollX = 0;
 }
 
 void GameManager::DrawShip()
@@ -619,12 +674,12 @@ void GameManager::CheckCollision()
 	std::vector<Projectile*>::iterator bIt;			// Projectile iterator
 	std::vector<Enemy*>::iterator iIt;				// Internal iterator
 
-	// Check collision for enemy and userBolts
+	// Get all possible collisions of bolts to enemies only (enemies can't collide with each other)
 	for (mIt = enemies.begin(); mIt != enemies.end(); mIt++)
 	{
 		for (iIt = mIt->begin(); iIt != mIt->end(); iIt++)
 		{
-			for (bIt = userBolts.begin(); bIt != userBolts.end(); bIt++)
+ 			for (bIt = userBolts.begin(); bIt != userBolts.end(); bIt++)
 			{
 				// If bolt hits an enemy, deactivate both
 				if (CollisionD((*iIt), (*bIt)))
@@ -731,34 +786,35 @@ void GameManager::DrawExplosions()
 	}
 }
 
-void GameManager::UIInit()
-{
-	// Load lives number pos
-	numbers[0]->SetX(lives_sprite->GetX() + lives_sprite->GetWidth() - 15);
-	numbers[0]->SetY(lives_sprite->GetY() - 5);
-
-	// Load score number pos
-	numbers[1]->SetX(score_sprite->GetX() + score_sprite->GetWidth() - 13);
-	numbers[1]->SetY(score_sprite->GetY() - 5);
-	numbers[2]->SetX(numbers[1]->GetX() + numbers[1]->GetWidth() - 35);
-	numbers[2]->SetY(score_sprite->GetY() - 5);
-}
-
 void GameManager::DrawUI()
 {
-	// Draw lives text
-	lives_sprite->Draw_Current_Frame();
-	numbers[0]->Draw_Frame(playerLives);
+	spriteobj->Begin(D3DXSPRITE_ALPHABLEND);
 
-	// Draw score text
-	score_sprite->Draw_Current_Frame();
-	if (playerScore < 10)
-		numbers[1]->Draw_Frame(playerScore);
-	else if (playerScore >= 10)
-	{
-		numbers[1]->Draw_Frame(playerScore / 10);
-		numbers[2]->Draw_Frame(playerScore % 10);
-	}
+	// Draw font obj
+	std::ostringstream oss1;
+	oss1.imbue(std::locale("english-us"));
+	oss1 << "Lives: " << playerLives;
+	std::ostringstream oss2;
+	oss2.imbue(std::locale("english-us"));
+	oss2 << "Score: " << playerScore;
+	_fontObj->Print(10, SCREENH - 35, oss1.str(), _white);
+	_fontObj->Print(120, SCREENH - 35, oss2.str(), _white);
+
+	spriteobj->End();
+
+	//// Draw lives text
+	//lives_sprite->Draw_Current_Frame();
+	//numbers[0]->Draw_Frame(playerLives);
+
+	//// Draw score text
+	//score_sprite->Draw_Current_Frame();
+	//if (playerScore < 10)
+	//	numbers[1]->Draw_Frame(playerScore);
+	//else if (playerScore >= 10)
+	//{
+	//	numbers[1]->Draw_Frame(playerScore / 10);
+	//	numbers[2]->Draw_Frame(playerScore % 10);
+	//}
 }
 
 void GameManager::ReverseHorde()

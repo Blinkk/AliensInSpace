@@ -25,6 +25,9 @@ protected:
 	D3DCOLOR _color;
 	LPDIRECT3DTEXTURE9 _texture;
 
+	// RECT for collision detection
+	RECT* _hitBox;
+
 public:
 	Sprite();
 	Sprite(LPDIRECT3DTEXTURE9 texture, int x, int y, int frame, int fWidth, 
@@ -41,6 +44,8 @@ public:
 	void Deactivate();
 	void Activate();
 	bool IsActive();
+
+	void UpdateCollider();
 
 	// Get _ Set functions
 	int GetX();
@@ -60,6 +65,7 @@ public:
 	int GetDelay();
 	int GetStartTime();
 	void SetStartTime(int st);
+	RECT GetHitbox();
 };
 
 #endif

@@ -89,6 +89,7 @@
     <ClCompile Include="DirectX.cpp" />
     <ClCompile Include="Dx9Base.cpp" />
     <ClCompile Include="Enemy.cpp" />
+    <ClCompile Include="Font.cpp" />
     <ClCompile Include="GameManager.cpp" />
     <ClCompile Include="Menu.cpp" />
     <ClCompile Include="Projectile.cpp" />
@@ -99,6 +100,7 @@
     <ClInclude Include="DirectX.h" />
     <ClInclude Include="Dx9Base.h" />
     <ClInclude Include="Enemy.h" />
+    <ClInclude Include="Font.h" />
     <ClInclude Include="GameManager.h" />
     <ClInclude Include="Menu.h" />
     <ClInclude Include="MP3Player.h" />

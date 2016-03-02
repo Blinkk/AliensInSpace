@@ -25,6 +25,8 @@ Sprite::Sprite()
 	_color = D3DCOLOR_XRGB(255, 255, 255);
 	_texture = NULL;
 	_active = true;
+
+	_hitBox = nullptr;
 }
 
 // Constructor
@@ -50,6 +52,12 @@ Sprite::Sprite(LPDIRECT3DTEXTURE9 texture, int x, int y, int frame,
 	_color = color;
 	_starttime = starttime;
 	_active = true;
+
+	_hitBox = new RECT();
+	_hitBox->left = _x;
+	_hitBox->top = _y;
+	_hitBox->right = _hitBox->left + _width;
+	_hitBox->bottom = _hitBox->top + _height;
 }
 
 // Destructor (virtual)
@@ -129,6 +137,17 @@ void Sprite::ChangeTexture(LPDIRECT3DTEXTURE9 txture)
 		_texture = txture;
 }
 
+void Sprite::UpdateCollider()
+{
+	if (_hitBox)
+	{
+		_hitBox->left = _x;
+		_hitBox->top = _y;
+		_hitBox->right = _hitBox->left + _width;
+		_hitBox->bottom = _hitBox->top + _height;
+	}
+}
+
 // Get functions
 int Sprite::GetX()
 {
@@ -143,11 +162,13 @@ int Sprite::GetY()
 void Sprite::SetX(int x)
 {
 	_x = x;
+	this->UpdateCollider();
 }
 
 void Sprite::SetY(int y)
 {
 	_y = y;
+	this->UpdateCollider();
 }
 
 int Sprite::GetVelX()
@@ -228,4 +249,20 @@ void Sprite::Activate()
 bool Sprite::IsActive()
 {
 	return _active;
+}
+
+RECT Sprite::GetHitbox()
+{
+	if (_hitBox)
+		return (*_hitBox);
+	else
+	{
+		RECT* defaultRect = new RECT();
+		defaultRect->left = 0;
+		defaultRect->top = 0;
+		defaultRect->right = 0;
+		defaultRect->bottom = 0;
+
+		return (*defaultRect);
+	}
 }

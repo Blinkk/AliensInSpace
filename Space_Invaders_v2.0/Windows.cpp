@@ -8,7 +8,6 @@ const std::string APPTITLE = "Game Manager";// Name of game
 const int SCREENW = 800;				// Width of window in pixels
 const int SCREENH = 600;				// Height of window in pixels
 
-
 bool gameover = false;
 
 /* Windows event handler */
@@ -50,6 +49,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
 		SCREENW, SCREENH, NULL, NULL, hInstance, NULL);
 	if (window == 0) return 0;
+
+	// Center the window
+	RECT rc = { 0, 0, SCREENW, SCREENH };
+	GetWindowRect(window, &rc);
+	int xPos = (GetSystemMetrics(SM_CXSCREEN) - rc.right) / 2;
+	int yPos = (GetSystemMetrics(SM_CYSCREEN) - rc.bottom) / 2;
+
+	SetWindowPos(window, 0, xPos, yPos, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
 
 	// Display the window
 	ShowWindow(window, nCmdShow);
